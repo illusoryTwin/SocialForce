@@ -3,6 +3,8 @@ from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
 from glob import glob 
 import os 
+import csv 
+
 
 def get_centroid(box):
     """Calculate centroid of a bound box and return 
@@ -11,8 +13,10 @@ def get_centroid(box):
     return (int((x1 + x2) / 2), int((y1 + y2) / 2))
 
 
+EXPERIMENT_NAME = "experiment1"
+
 # === Define paths to images ===
-base_path = "../experiment1/"
+base_path = "../../experiment1/"
 rgb_folder = "rgb/"
 depth_folder = "depth/"
 
@@ -20,11 +24,22 @@ rgb_images = sorted(glob(os.path.join(base_path, rgb_folder, "rgb_*.png")))
 depth_images = sorted(glob(os.path.join(base_path, depth_folder, "depth_*.png")))
 
 
+
 # === Define the models ===
 # Define model for people detection
 model = YOLO("yolov8n.pt")
 # Define tracker for tracking detected people
 tracker = DeepSort(max_age=30)
+
+
+
+# Define output CSV path
+csv_output_path = f"../data/{EXPERIMENT_NAME}/trajectories.csv"
+
+# Prepare CSV file for writing
+csv_file = open(csv_output_path, mode='w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(["track_id", "x", "y"])  # CSV header
 
 
 trajectories = {} # Store trajectories by ID {id: [(x, y), (x, y), ...]}
@@ -60,6 +75,9 @@ for rgb_image_path, depth_image_path in zip(rgb_images, depth_images):
             trajectories[track_id] = []
         trajectories[track_id].append(centroid)
 
+        # Save to CSV
+        csv_writer.writerow([track_id, centroid[0], centroid[1]])
+
         # Draw trajectory
         points = trajectories[track_id]
         for i in range(1, len(points)):
@@ -76,5 +94,12 @@ for rgb_image_path, depth_image_path in zip(rgb_images, depth_images):
     cv2.imshow("Depth Image", depth_image)
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break   
+
+
+print("trajectories", trajectories)
+with open(f"../data/{EXPERIMENT_NAME}/trajectories.txt", "w") as f:
+    for track_id, points in trajectories.items():
+        f.write(f"ID {track_id}: {points}\n")
+print("Trajectories saved to trajectories.txt")
 
 cv2.destroyAllWindows() 

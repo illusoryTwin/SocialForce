@@ -5,7 +5,7 @@ from ultralytics import YOLO
 import sys
 import os
 import glob
-
+import csv
 
 class PedestrianDetector:
     def __init__(self, plane_equation_path, camera_params_path):
@@ -165,7 +165,8 @@ class PedestrianDetector:
                 # Draw projected point
                 cv2.circle(vis_frame, (proj_x, proj_y), 3, (0, 0, 255), -1)
         
-        return vis_frame
+        projected_data = list(zip(point_ids, projected_points))
+        return vis_frame, projected_data
 
 
 def main():
@@ -177,8 +178,7 @@ def main():
     
     # Directory containing RGB frames
     rgb_dir = (
-        "/media/ant/52F6748DF67472D9/PhD/T4/embedded system/"
-        "fp/experiment1/rgb"
+        "../imgs_data/rgb"
     )
     
     # Get all image files in the directory
@@ -190,31 +190,56 @@ def main():
     
     print(f"Found {len(image_files)} images to process")
     
-    # Process each frame
-    for img_path in image_files:
-        # Read frame
-        frame = cv2.imread(img_path)
-        if frame is None:
-            print(f"Error: Could not read image {img_path}")
-            continue
+    # # Process each frame
+    # for img_path in image_files:
+    #     # Read frame
+    #     frame = cv2.imread(img_path)
+    #     if frame is None:
+    #         print(f"Error: Could not read image {img_path}")
+    #         continue
             
-        # For demonstration, we'll use a synthetic depth frame
-        # In real application, you would get this from your depth camera
-        depth_frame = np.ones(
-            (frame.shape[0], frame.shape[1]),
-            dtype=np.float32
-        ) * 2.0
+    #     # For demonstration, we'll use a synthetic depth frame
+    #     # In real application, you would get this from your depth camera
+    #     depth_frame = np.ones(
+    #         (frame.shape[0], frame.shape[1]),
+    #         dtype=np.float32
+    #     ) * 2.0
         
-        # Process frame
-        result_frame = detector.process_frame(frame, depth_frame)
+    #     # Process frame
+    #     result_frame = detector.process_frame(frame, depth_frame)
         
-        # Display results
-        cv2.imshow('Pedestrian Detection', result_frame)
+    #     # Display results
+    #     cv2.imshow('Pedestrian Detection', result_frame)
         
-        # Wait for key press (1ms) and break if 'q' is pressed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    
+    #     # Wait for key press (1ms) and break if 'q' is pressed
+    #     if cv2.waitKey(1) & 0xFF == ord('q'):
+    #         break
+
+      # Open CSV file for writing
+    with open("projected_points.csv", mode="w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["frame", "pedestrian_id", "X", "Y", "Z"])
+
+        for frame_index, img_path in enumerate(image_files):
+            frame = cv2.imread(img_path)
+            if frame is None:
+                print(f"Error: Could not read image {img_path}")
+                continue
+
+            depth_frame = np.ones((frame.shape[0], frame.shape[1]), dtype=np.float32) * 2.0
+
+            # Process frame and get result and projected data
+            result_frame, projected_data = detector.process_frame(frame, depth_frame)
+
+            # Write projected points to CSV
+            for ped_id, (X, Y, Z) in projected_data:
+                csv_writer.writerow([frame_index, ped_id, X, Y, Z])
+
+            # Display result
+            cv2.imshow('Pedestrian Detection', result_frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
     cv2.destroyAllWindows()
 
 

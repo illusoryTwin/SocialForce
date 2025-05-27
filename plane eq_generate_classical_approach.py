@@ -5,14 +5,14 @@ import random
 import os
 
 # File paths
-SEGMENTED_IMAGE_PATH = '/home/ant/projects/SocialForce/segmented_image.jpg'
-DEPTH_MAP_PATH = '/home/ant/projects/SocialForce/depth_002126.png'
-CAMERA_PARAMS_PATH = '/home/ant/projects/SocialForce/camera_params.yaml'
-PLANE_EQUATION_OUTPUT_PATH = '/home/ant/projects/SocialForce/floor_plane_equation.yaml' # Output file for plane equation
+SEGMENTED_IMAGE_PATH = 'segmented_image.jpg'
+DEPTH_MAP_PATH = 'depth_002126.png'
+CAMERA_PARAMS_PATH = 'camera_params.yaml'
+PLANE_EQUATION_OUTPUT_PATH = 'floor_plane_equation.yaml' # Output file for plane equation
 
 # Dataset path for visualization
 # Update this path to match your actual dataset location
-DATASET_RGB_FOLDER = '/media/ant/52F6748DF67472D9/PhD/T4/embedded system/fp/experiment1/rgb'
+DATASET_RGB_FOLDER = "../imgs_data/rgb" #'/media/ant/52F6748DF67472D9/PhD/T4/embedded system/fp/experiment1/rgb'
 VISUALIZATION_OUTPUT_FOLDER = '/home/ant/projects/SocialForce/plane_visualizations' # Output folder for visualized images
 
 # Assume the mask color is bright pink (R=255, G=0, B=255).

@@ -199,7 +199,7 @@ def visualize_plane_on_rgb(rgb, a, b, c, camera_params, depth_path):
 def main():
     try:
         # Base directory for the dataset
-        base_dir = Path("/media/ant/52F6748DF67472D9/PhD/T4/embedded system/fp/experiment1")
+        base_dir = Path("../imgs_data/")
         
         # Load timestamps
         with open(base_dir / "frame_timestamps.json", 'r') as f:

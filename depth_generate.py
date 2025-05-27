@@ -35,7 +35,7 @@ def process_image(image_path, processor, model):
 
 def main():
     # Setup paths
-    main_path = "/media/ant/52F6748DF67472D9/PhD/T4/embedded system/fp/experiment1/"
+    main_path = "../imgs_data/"
     rgb_folder = os.path.join(main_path, "rgb")
     output_folder = os.path.join(main_path, "depth_synthetic")
     

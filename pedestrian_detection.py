@@ -5,6 +5,7 @@ from ultralytics import YOLO
 import sys
 import os
 import glob
+import open3d as o3d
 
 
 class PedestrianDetector:
@@ -13,14 +14,15 @@ class PedestrianDetector:
         self.model = YOLO('yolov8n.pt')
         
         # Load plane equation
+        xyz_d0_means = np.load('xyz_d0_means.npy')
+        print("Loaded plane coefficients:", xyz_d0_means)
+
+        a, b, c, d0 = xyz_d0_means
+        d0 = -d0  # Negate d0 to match 3D_visualization.py
+
         with open(plane_equation_path, 'r') as f:
             plane_data = yaml.safe_load(f)
-            self.plane_eq = np.array([
-                plane_data['plane_equation']['A'],
-                plane_data['plane_equation']['B'],
-                plane_data['plane_equation']['C'],
-                plane_data['plane_equation']['D']
-            ])
+            self.plane_eq = np.array([a, b, c, d0])
         
         # Load camera parameters
         with open(camera_params_path, 'r') as f:
@@ -35,7 +37,64 @@ class PedestrianDetector:
         # Initialize pedestrian tracking
         self.next_pedestrian_id = 0
         self.pedestrian_tracks = {}  # Dictionary to store pedestrian tracks
-            
+        
+        # Initialize Open3D visualization
+        self.vis = o3d.visualization.Visualizer()
+        self.vis.create_window()
+        
+        # Create plane mesh
+        self.plane_mesh = self.create_plane_mesh(self.plane_eq, size=200.0)
+        self.plane_mesh.paint_uniform_color([0, 1, 0])  # Green color
+        
+        # Create coordinate frame
+        self.coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
+            size=1.0,
+            origin=[0, 0, 0]
+        )
+        
+        # Add geometries to visualizer
+        self.vis.add_geometry(self.plane_mesh)
+        self.vis.add_geometry(self.coordinate_frame)
+        
+        # Set up camera
+        ctr = self.vis.get_view_control()
+        ctr.set_zoom(0.8)
+        ctr.set_front([0, 0, -1])
+        ctr.set_lookat([0, 0, 0])
+        ctr.set_up([0, -1, 0])
+    
+    def create_plane_mesh(self, coefficients, size=200.0):
+        a, b, c, d0 = coefficients
+        
+        # Create a grid of points
+        x = np.linspace(-size, size, 20)
+        y = np.linspace(-size, size, 20)
+        X, Y = np.meshgrid(x, y)
+        
+        # Calculate Z values for the plane (ax + by + cz + d0 = 0)
+        Z = -(a*X + b*Y + d0) / c
+        
+        # Create vertices
+        vertices = np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis=1)
+        
+        # Create triangles
+        triangles = []
+        for i in range(19):
+            for j in range(19):
+                v0 = i * 20 + j
+                v1 = v0 + 1
+                v2 = v0 + 20
+                v3 = v2 + 1
+                triangles.extend([[v0, v1, v2], [v1, v3, v2]])
+        
+        # Create mesh
+        mesh = o3d.geometry.TriangleMesh()
+        mesh.vertices = o3d.utility.Vector3dVector(vertices)
+        mesh.triangles = o3d.utility.Vector3iVector(triangles)
+        mesh.compute_vertex_normals()
+        
+        return mesh
+
     def project_to_plane(self, x, y, depth):
         # Convert pixel coordinates to camera coordinates
         X = (x - self.cx) * depth / self.fx
@@ -98,19 +157,76 @@ class PedestrianDetector:
         
         return frame
     
+    def create_point_cloud(self, rgb, depth):
+        # Create meshgrid of pixel coordinates
+        rows, cols = depth.shape
+        c, r = np.meshgrid(np.arange(cols), np.arange(rows))
+        
+        # Convert to 3D points
+        z = depth.astype(float) / 10.0  # Convert to meters
+        x = (c - self.cx) * z / self.fx
+        y = (r - self.cy) * z / self.fy
+        
+        # Stack coordinates and reshape
+        points = np.stack([x, y, z], axis=-1)
+        points = points.reshape(-1, 3)
+        colors = rgb.reshape(-1, 3) / 255.0
+        
+        # Remove invalid points (where depth is 0)
+        valid_points = z.reshape(-1) > 0
+        points = points[valid_points]
+        colors = colors[valid_points]
+        
+        return points, colors
+
+    def create_bounding_box(self, x1, y1, x2, y2, depth):
+        # Convert 2D points to 3D
+        points_2d = np.array([
+            [x1, y1], [x2, y1], [x2, y2], [x1, y2]  # Bottom face
+        ])
+        
+        points_3d = []
+        for x, y in points_2d:
+            X = (x - self.cx) * depth / self.fx
+            Y = (y - self.cy) * depth / self.fy
+            Z = depth
+            points_3d.append([X, Y, Z])
+        
+        # Create top face points
+        top_points = np.array(points_3d) + np.array([0, 0, 0.5])  # Add height
+        
+        # Combine all points
+        all_points = np.vstack([points_3d, top_points])
+        
+        # Create lines for the box
+        lines = [
+            [0, 1], [1, 2], [2, 3], [3, 0],  # Bottom face
+            [4, 5], [5, 6], [6, 7], [7, 4],  # Top face
+            [0, 4], [1, 5], [2, 6], [3, 7]   # Connecting lines
+        ]
+        
+        # Create line set
+        line_set = o3d.geometry.LineSet()
+        line_set.points = o3d.utility.Vector3dVector(all_points)
+        line_set.lines = o3d.utility.Vector2iVector(lines)
+        line_set.colors = o3d.utility.Vector3dVector([[1, 0, 0] for _ in range(len(lines))])  # Red color
+        
+        return line_set
+
     def process_frame(self, frame, depth_frame):
         # Run YOLO detection
         results = self.model(frame, classes=[0])  # class 0 is person in COCO
         
-        # Create visualization
-        vis_frame = frame.copy()
+        # Create point cloud from RGB and depth
+        points, colors = self.create_point_cloud(frame, depth_frame)
         
-        # Draw floor plane
-        vis_frame = self.draw_floor_plane(vis_frame)
+        # Create Open3D point cloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        pcd.colors = o3d.utility.Vector3dVector(colors)
         
-        # List to store projected points and their IDs
-        projected_points = []
-        point_ids = []
+        # Add RGB point cloud to visualization
+        self.vis.add_geometry(pcd)
         
         # Process each detection
         for result in results:
@@ -127,45 +243,15 @@ class PedestrianDetector:
                 # Get depth at center point
                 depth = depth_frame[center_y, center_x]
                 
-                # Project to plane
-                X, Y, Z = self.project_to_plane(center_x, center_y, depth)
-                projected_points.append([X, Y, Z])
-                
-                # Assign or get pedestrian ID
-                ped_id = self.next_pedestrian_id
-                self.next_pedestrian_id += 1
-                point_ids.append(ped_id)
-                
-                # Draw bounding box
-                cv2.rectangle(vis_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                
-                # Draw center point
-                cv2.circle(vis_frame, (center_x, center_y), 5, (0, 0, 255), -1)
-                
-                # Add text with ID and 3D coordinates
-                text = f"ID:{ped_id} ({X:.2f}, {Y:.2f}, {Z:.2f})"
-                cv2.putText(
-                    vis_frame, text, (x1, y1-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2
-                )
-                
-                # Project point to image plane
-                proj_x = int(X * self.fx / Z + self.cx)
-                proj_y = int(Y * self.fy / Z + self.cy)
-                
-                # Draw projection line
-                cv2.line(
-                    vis_frame,
-                    (center_x, center_y),
-                    (proj_x, proj_y),
-                    (0, 0, 255),
-                    1
-                )
-                
-                # Draw projected point
-                cv2.circle(vis_frame, (proj_x, proj_y), 3, (0, 0, 255), -1)
+                # Create and add bounding box
+                bbox = self.create_bounding_box(x1, y1, x2, y2, depth)
+                self.vis.add_geometry(bbox)
         
-        return vis_frame
+        # Update visualization
+        self.vis.poll_events()
+        self.vis.update_renderer()
+        
+        return frame
 
 
 def main():
@@ -177,7 +263,7 @@ def main():
     
     # Directory containing RGB frames
     rgb_dir = (
-        "/media/ant/52F6748DF67472D9/PhD/T4/embedded system/"
+        "/media/hdd_4//PhD/T4/embedded system/"
         "fp/experiment1/rgb"
     )
     
@@ -188,15 +274,22 @@ def main():
         print(f"Error: No image files found in {rgb_dir}")
         sys.exit(1)
     
-    print(f"Found {len(image_files)} images to process")
+    # Filter files to start from frame 2000
+    start_frame = 2000
+    image_files = [f for f in image_files if int(os.path.basename(f).split('_')[1].split('.')[0]) >= start_frame]
     
-    # Process each frame
-    for img_path in image_files:
+    print(f"Found {len(image_files)} images to process starting from frame {start_frame}")
+    
+    # Process only the first frame for debugging
+    if image_files:
+        img_path = image_files[0]
+        print(f"Processing frame: {img_path}")
+        
         # Read frame
         frame = cv2.imread(img_path)
         if frame is None:
             print(f"Error: Could not read image {img_path}")
-            continue
+            sys.exit(1)
             
         # For demonstration, we'll use a synthetic depth frame
         # In real application, you would get this from your depth camera
@@ -206,16 +299,11 @@ def main():
         ) * 2.0
         
         # Process frame
-        result_frame = detector.process_frame(frame, depth_frame)
+        detector.process_frame(frame, depth_frame)
         
-        # Display results
-        cv2.imshow('Pedestrian Detection', result_frame)
-        
-        # Wait for key press (1ms) and break if 'q' is pressed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-    
-    cv2.destroyAllWindows()
+        # Keep Open3D window open until closed
+        detector.vis.run()
+        detector.vis.destroy_window()
 
 
 if __name__ == "__main__":

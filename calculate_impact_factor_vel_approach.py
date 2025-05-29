@@ -1,10 +1,12 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
 
 DATA_PATH = "trajectories.csv"
 WINDOW_SIZE = 3
-SELECTED_ID_PAIR = [0, 2]
+SELECTED_ID_PAIR = [1, 3]
 
 
 def load_and_prepare_data(path: str) -> pd.DataFrame:
@@ -132,6 +134,7 @@ def plot_metrics(df: pd.DataFrame, df_impact: pd.DataFrame, ids: list[int] = SEL
     plt.show()
 
 
+
 def main():
     df = load_and_prepare_data(DATA_PATH)
     df = apply_rolling_smoothing(df, WINDOW_SIZE)
@@ -143,6 +146,7 @@ def main():
 
     impact_df[["timestamp", "impact_factor"]].to_csv("impact_factor.csv", index=False)
     impact_df[["impact_factor"]].to_csv("impact_factor_no_time.csv", index=False)
+
 
 
 if __name__ == "__main__":

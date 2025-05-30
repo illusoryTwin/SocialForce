@@ -13,7 +13,6 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
 
     # Load impact factor data
     impact_df = pd.read_csv(impact_factor_csv_path)
-    # impact_df = pd.read_csv("impact_factor.csv")
     impact_df["timestamp"] = pd.to_datetime(impact_df["timestamp"])
     impact_df.sort_values(by="timestamp", inplace=True)
     impact_df["time_index"] = (impact_df["timestamp"] - df["timestamp"].min()).dt.total_seconds().astype(int)
@@ -84,7 +83,6 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
             magnitude = impact_row["impact_factor"].iloc[0]
             if pd.isna(magnitude):
                 magnitude = 1e-6 
-            print("magnitude", magnitude)
             x0, y0 = key_row.iloc[0][["x", "y"]]
             x1, y1 = rel_row.iloc[0][["x", "y"]]
             dx, dy = x1 - x0, y1 - y0
@@ -96,13 +94,12 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
                     (x0, y0), (x0 + dx_scaled, y0 + dy_scaled),
                     arrowstyle='->', color='red', mutation_scale=15)
                 ax.add_patch(vector_arrow)
-                
+
         return scat, time_text, *text_labels
 
 
     ani = FuncAnimation(fig, update, frames=len(time_steps), interval=100, blit=False)
     plt.show()
 
-# # Run simulation
-# simulate()
+
 

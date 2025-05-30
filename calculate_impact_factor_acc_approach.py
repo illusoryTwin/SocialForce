@@ -110,9 +110,7 @@ def calculate_impact_factor_by_acc(window_size=3, selected_id_pair=[1, 3]):
 
     impact_factor_path = f"impact_factor_{selected_id_pair[0]}_{selected_id_pair[1]}.csv"
 
-    # df_0[["timestamp", "impact_factor"]].to_csv("impact_factor.csv", index=False)
     df_0[["timestamp", "impact_factor"]].to_csv(impact_factor_path, index=False)
 
     return impact_factor_path
 
-# calculate_impact_factor_by_acc()

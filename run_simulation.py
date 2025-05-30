@@ -91,7 +91,7 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
                 dx_scaled = (dx / norm) * abs(magnitude)
                 dy_scaled = (dy / norm) * abs(magnitude)
                 vector_arrow = FancyArrowPatch(
-                    (x0, y0), (x0 + dx_scaled, y0 + dy_scaled),
+                    (x0, y0), (x0 + dx_scaled*50, y0 + dy_scaled*50),
                     arrowstyle='->', color='red', mutation_scale=15)
                 ax.add_patch(vector_arrow)
 

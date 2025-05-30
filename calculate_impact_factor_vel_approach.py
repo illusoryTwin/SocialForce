@@ -7,7 +7,7 @@ def calculate_impact_factor_by_vel(window_size=3, selected_id_pair=[1, 3]):
 
     DATA_PATH = "trajectories.csv"
     WINDOW_SIZE = 3
-    SELECTED_ID_PAIR = [1, 3]
+    SELECTED_ID_PAIR = selected_id_pair #[1, 3]
 
 
     def load_and_prepare_data(path: str) -> pd.DataFrame:

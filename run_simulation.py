@@ -48,8 +48,8 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
         nonlocal text_labels, vector_arrow
         t = time_steps[frame_index]
 
-        # Get current positions at this time step
-        current_data = df[df["time_index"] == t]
+        # Get current positions at this time step — drop duplicates
+        current_data = df[df["time_index"] == t].drop_duplicates(subset="id", keep="first")
         positions = np.column_stack((current_data["x"], current_data["y"]))
         colors_list = [id_color[id_] for id_ in current_data["id"]]
 
@@ -75,28 +75,30 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
             vector_arrow.remove()
             vector_arrow = None
 
-        # Find corresponding impact magnitude for current time
+        # Vector drawing logic
         impact_row = impact_df[impact_df["time_index"] == t]
-
-        # Draw vector if key_id, relative_id exist and impact magnitude available
         key_row = current_data[current_data["id"] == key_id]
         rel_row = current_data[current_data["id"] == relative_id]
 
         if not key_row.empty and not rel_row.empty and not impact_row.empty:
             magnitude = impact_row["impact_factor"].iloc[0]
+            if pd.isna(magnitude):
+                magnitude = 1e-6 
+            print("magnitude", magnitude)
             x0, y0 = key_row.iloc[0][["x", "y"]]
             x1, y1 = rel_row.iloc[0][["x", "y"]]
             dx, dy = x1 - x0, y1 - y0
             norm = np.sqrt(dx**2 + dy**2)
-            if norm > 0 and magnitude > 0:
-                dx_scaled = (dx / norm) * magnitude
-                dy_scaled = (dy / norm) * magnitude
+            if norm > 0:
+                dx_scaled = (dx / norm) * abs(magnitude)
+                dy_scaled = (dy / norm) * abs(magnitude)
                 vector_arrow = FancyArrowPatch(
                     (x0, y0), (x0 + dx_scaled, y0 + dy_scaled),
                     arrowstyle='->', color='red', mutation_scale=15)
                 ax.add_patch(vector_arrow)
-
+                
         return scat, time_text, *text_labels
+
 
     ani = FuncAnimation(fig, update, frames=len(time_steps), interval=100, blit=False)
     plt.show()

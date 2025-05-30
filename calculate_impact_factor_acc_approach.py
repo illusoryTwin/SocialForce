@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 def calculate_impact_factor_by_acc(window_size=3, selected_id_pair=[1, 3]):
     WINDOW_SIZE = window_size
     SELECTED_ID_PAIR = selected_id_pair  # Selected people IDs
-
-
+    
     def load_and_prepare_data(filepath: str) -> pd.DataFrame:
         df = pd.read_csv(filepath)
         df["timestamp"] = pd.to_datetime(df["timestamp"])

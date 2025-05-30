@@ -36,7 +36,7 @@ def simulate(impact_factor_csv_path, key_id=0, relative_id=1):
     y_min, y_max = df["y"].min() - margin, df["y"].max() + margin
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
-    ax.set_title("Dynamic Trajectory Simulation with IDs and Vector")
+    ax.set_title(f"Dynamic trajectory simulation of pedestrians. Impact factor between ID_{key_id} and ID_{relative_id}")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
 

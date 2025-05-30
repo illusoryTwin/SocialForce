@@ -52,7 +52,8 @@ def calculate_impact_factor_by_acc(window_size=3, selected_id_pair=[1, 3]):
         cos_theta = dot_product / (r_norm * a_norm)
 
         cos_theta = cos_theta.fillna(0)
-        impact_factor = (r_norm / a_norm) * cos_theta
+        impact_factor = (a_norm / r_norm) * cos_theta
+        # impact_factor = (r_norm / a_norm) * cos_theta
         impact_factor.replace([np.inf, -np.inf], 0, inplace=True)
 
         return impact_factor

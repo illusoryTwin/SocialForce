@@ -100,7 +100,7 @@ class TrajectorySaver:
         self.frame_numbers[ped_id].append(frame_num)
         self.timestamps[ped_id].append(datetime.now().timestamp())
 
-    def save_trajectories(self, filename='trajectories.npz'):
+    def save_trajectories(self, filename='trajectories_3.npz'):
         """Save all trajectories to numpy file"""
         # Convert trajectories to numpy arrays
         trajectory_data = {}
@@ -165,10 +165,10 @@ model = YOLO('yolov8n.pt')
 saver = TrajectorySaver()
 
 # Base path for images
-base_path = "/media/hdd_4/PhD/T4/embedded system/fp/experiment1/rgb"
+base_path = "/media/hdd_4/PhD/T4/embedded system/fp/experiment3/rgb"
 
 # Process video and save trajectories
 start_frame = 2300
-end_frame = 46310
+end_frame = 5000
 saver.process_video(start_frame, end_frame, base_path)
 saver.save_trajectories() 

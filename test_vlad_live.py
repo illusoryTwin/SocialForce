@@ -244,7 +244,7 @@ model = YOLO('yolov8n.pt')
 tracker = LivePedestrianTracker()
 
 # Base path for images
-base_path = "/media/hdd_4/PhD/T4/embedded system/fp/experiment1/rgb"
+base_path = "/media/hdd_4/PhD/T4/embedded system/fp/experiment2/rgb"
 
 # Setup animation
 tracker.setup_animation()
